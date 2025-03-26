@@ -2,6 +2,13 @@
 #include <GLFW/glfw3.h>
 #include <iostream>
 #include<random>
+#include<math.h>
+#include<thread>
+#include<chrono>
+
+#define M_PI 3.14159
+
+unsigned int VBO;
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
 	glViewport(0, 0, width, height);
@@ -10,7 +17,7 @@ float randomFloat()
 {
 	std::random_device rd;
 	std::mt19937 gen(rd());
-	
+
 	std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
 
 	return dist(gen);
@@ -20,17 +27,85 @@ float randomFloat()
 float vertices[9] = {
 };
 
+float newX(float xPos) {
+	return xPos + (0.1 * cos(60 * M_PI / 180.0));
+}
+float newY(float yPos) {
+	return yPos + (0.1 * sin(60 * M_PI / 180.0));
+}
 
+float normalizeX(float x, int width) {
+	return  (-1.0f + 2.0f * (double)x) / width;
+}
+
+float normalizeY(float y, int height) {
+	return  (1.0f - 2.0f * (double)(y)) / height;
+}
+void generateEquilateralTriangle(float centerX, float centerY, float sideLength) {
+	float height = sideLength * sin(60 * M_PI / 180.0);
+
+	vertices[0] = centerX;               // First vertex x (top)
+	vertices[1] = centerY + height / 2;    // First vertex y
+	vertices[2] = 0.0f;                  // First vertex z
+
+	vertices[3] = centerX - sideLength / 2; // Second vertex x (bottom left)
+	vertices[4] = centerY - height / 2;     // Second vertex y
+	vertices[5] = 0.0f;                   // Second vertex z
+
+	vertices[6] = centerX + sideLength / 2; // Third vertex x (bottom right)
+	vertices[7] = centerY - height / 2;     // Third vertex y
+	vertices[8] = 0.0f;                   // Third vertex z
+}
+bool isTraingleDrawn = false;
+
+void moveTraingleDownWard() {
+	if (vertices[1] > 0) {
+		vertices[1] += 0.1;
+	}
+	else if (vertices[1] < 0) {
+		vertices[1] -= 0.1;
+	}
+	if (vertices[4] > 0) {
+		vertices[4] += 0.1;
+	}
+	else if (vertices[4] < 0) {
+		vertices[4] -= 0.1;
+	}
+	if (vertices[7] > 0) {
+		vertices[7] += 0.1;
+	}
+	else if (vertices[7] < 0) {
+		vertices[7] -= 0.1;
+	}
+	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+}
 void processInput(GLFWwindow* window) {
 	double xpos, ypos;
 	int height, width;
 	if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1) == GLFW_PRESS) {
+		double xpos, ypos;
+		int width, height;
+
 		glfwGetCursorPos(window, &xpos, &ypos);
 		glfwGetWindowSize(window, &width, &height);
-		double normalizedX = (-1.0f + 2.0f * (double)xpos) / width;
-		double normlizedY = (1.0f - 2.0f * (double)(ypos)) / height;
-		std::cout << "current x pos is " << xpos << " y pos is " << ypos << std::endl;
-		std::cout << "normalized x pos is" << normalizedX << " y pos is " << normlizedY << std::endl;
+
+		// Convert screen coordinates to normalized device coordinates
+		float normalizedX = (2.0f * xpos / width) - 1.0f;
+		float normalizedY = 1.0f - (2.0f * ypos / height);
+
+		std::cout << "Mouse clicked at: " << xpos << ", " << ypos << std::endl;
+		std::cout << "Normalized coords: " << normalizedX << ", " << normalizedY << std::endl;
+
+		// Generate an equilateral triangle centered at the clicked position
+		generateEquilateralTriangle(normalizedX, normalizedY, 0.2f);
+
+		// Update the vertex buffer
+		glBindBuffer(GL_ARRAY_BUFFER, VBO);
+		glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+		isTraingleDrawn = true;
+
+		std::cout << "Triangle vertices updated" << std::endl;
 	}
 }
 
@@ -49,9 +124,6 @@ const char* fragmentShaderSrc = "#version 460 core\n"
 
 int main() {
 	srand(static_cast<unsigned int>(time(0)));
-	for (int i = 0; i < 9; i++) {
-		vertices[i] = randomFloat();
-	}
 	glfwInit();
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
@@ -75,7 +147,6 @@ int main() {
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
 
 	// setup vertices
-	unsigned int VBO;
 	glGenBuffers(1, &VBO);
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
 	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
@@ -142,6 +213,10 @@ int main() {
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
+		if (isTraingleDrawn) {
+			moveTraingleDownWard();
+			std::this_thread::sleep_for(std::chrono::milliseconds(200));
+		}
 	}
 	glDeleteVertexArrays(1, &VAO);
 	glDeleteBuffers(1, &VBO);
