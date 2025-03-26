@@ -1,19 +1,57 @@
 #include<glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <iostream>
+#include<random>
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
 	glViewport(0, 0, width, height);
 }
+float randomFloat()
+{
+	std::random_device rd;
+	std::mt19937 gen(rd());
+	
+	std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
 
-void processInput(GLFWwindow* window) {
-	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
-		std::cout << "you pressed a" << std::endl;
-	}
+	return dist(gen);
 
 }
 
+float vertices[9] = {
+};
+
+
+void processInput(GLFWwindow* window) {
+	double xpos, ypos;
+	int height, width;
+	if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1) == GLFW_PRESS) {
+		glfwGetCursorPos(window, &xpos, &ypos);
+		glfwGetWindowSize(window, &width, &height);
+		double normalizedX = (-1.0f + 2.0f * (double)xpos) / width;
+		double normlizedY = (1.0f - 2.0f * (double)(ypos)) / height;
+		std::cout << "current x pos is " << xpos << " y pos is " << ypos << std::endl;
+		std::cout << "normalized x pos is" << normalizedX << " y pos is " << normlizedY << std::endl;
+	}
+}
+
+const char* vertexShaderSrc = "#version 460 core \n"
+"layout (location = 0) in vec3 aPos; \n"
+"void main()"
+"{"
+"gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);"
+"}\0";
+
+const char* fragmentShaderSrc = "#version 460 core\n"
+"out vec4 FragColor;"
+"void main(){"
+"FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);"
+"}\0";
+
 int main() {
+	srand(static_cast<unsigned int>(time(0)));
+	for (int i = 0; i < 9; i++) {
+		vertices[i] = randomFloat();
+	}
 	glfwInit();
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
@@ -35,11 +73,6 @@ int main() {
 	glViewport(0, 0, 800, 600);
 
 	glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
-	float vertices[] = {
-		-0.5f, -0.5f, 0.0f,
-		0.5f, -0.5f, 0.0f,
-		0.0f, 0.5f, 0.0f
-	};
 
 	// setup vertices
 	unsigned int VBO;
@@ -53,12 +86,6 @@ int main() {
 	glBindVertexArray(VAO);
 
 	// vertex shader
-	const char* vertexShaderSrc = "#version 460 core \n"
-		"layout (location = 0) in vec3 aPos; \n"
-		"void main()"
-		"{"
-		"gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);"
-		"}\0";
 	unsigned int vertexShader;
 	vertexShader = glCreateShader(GL_VERTEX_SHADER);
 	glShaderSource(vertexShader, 1, &vertexShaderSrc, NULL);
@@ -72,15 +99,9 @@ int main() {
 		std::cout << "Error::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
 	}
 
+
 	// fragment shader
-
-	const char* fragmentShaderSrc = "#version 460 core\n"
-		"out vec4 FragColor;"
-		"void main(){"
-		"FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);"
-		"}\0";
 	unsigned int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-
 	glShaderSource(fragmentShader, 1, &fragmentShaderSrc, NULL);
 	glCompileShader(fragmentShader);
 
@@ -90,10 +111,10 @@ int main() {
 		std::cout << "Error::SHADER::FRAGMENT::COMPILATION_FAILED\n" << infoLog << std::endl;
 	}
 
+	// link shaders
 	unsigned int shaderProgram = glCreateProgram();
-
 	glAttachShader(shaderProgram, vertexShader);
-	glActiveShaderProgram(shaderProgram, fragmentShader);
+	glAttachShader(shaderProgram, fragmentShader);
 	glLinkProgram(shaderProgram);
 
 	glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
@@ -101,10 +122,14 @@ int main() {
 		glad_glGetShaderInfoLog(shaderProgram, 521, NULL, infoLog);
 		std::cout << "Error::Shader Linking Failed\n" << infoLog << std::endl;
 	}
+	glDeleteShader(vertexShader);
+	glDeleteShader(fragmentShader);
+
 
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
 	glEnableVertexAttribArray(0);
 	glBindVertexArray(VAO);
+	glfwSwapInterval(4);
 
 	while (!glfwWindowShouldClose(window)) {
 		processInput(window);
