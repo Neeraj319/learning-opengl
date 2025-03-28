@@ -9,104 +9,127 @@
 #define M_PI 3.14159
 
 unsigned int VBO;
+unsigned int EBO;
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
 	glViewport(0, 0, width, height);
 }
-float randomFloat()
-{
-	std::random_device rd;
-	std::mt19937 gen(rd());
 
-	std::uniform_real_distribution<float> dist(-1.0f, 1.0f);
+const float radius = 0.069;
 
-	return dist(gen);
+const int MAX_TRIANGLES = 196;
+const int MAX_COORDNATES = 9;
+const int MAX_VERTICES = 3;
 
-}
+float vertices[MAX_TRIANGLES * MAX_COORDNATES];
+unsigned int indices[MAX_TRIANGLES * MAX_VERTICES];
 
-float vertices[9] = {
-};
+float startingH = -0.9, startingK = 0.9;
+float currentH = startingH, currentK = startingK;
 
-float newX(float xPos) {
-	return xPos + (0.1 * cos(60 * M_PI / 180.0));
-}
-float newY(float yPos) {
-	return yPos + (0.1 * sin(60 * M_PI / 180.0));
-}
+void generateEquilateralTriangle(float centerX, float centerY, float radius, int index) {
+	vertices[index++] = centerX + (radius * cos(210 * M_PI / 180.0));
+	vertices[index++] = centerY + (radius * sin(210 * M_PI / 180.0));
+	vertices[index++] = 0.0f;
 
-float normalizeX(float x, int width) {
-	return  (-1.0f + 2.0f * (double)x) / width;
-}
+	vertices[index++] = centerX + (radius * cos(330 * M_PI / 180.0));
+	vertices[index++] = centerY + (radius * sin(330 * M_PI / 180.0));
+	vertices[index++] = 0.0f;
 
-float normalizeY(float y, int height) {
-	return  (1.0f - 2.0f * (double)(y)) / height;
-}
-void generateEquilateralTriangle(float centerX, float centerY, float sideLength) {
-	float height = sideLength * sin(60 * M_PI / 180.0);
-
-	vertices[0] = centerX;               // First vertex x (top)
-	vertices[1] = centerY + height / 2;    // First vertex y
-	vertices[2] = 0.0f;                  // First vertex z
-
-	vertices[3] = centerX - sideLength / 2; // Second vertex x (bottom left)
-	vertices[4] = centerY - height / 2;     // Second vertex y
-	vertices[5] = 0.0f;                   // Second vertex z
-
-	vertices[6] = centerX + sideLength / 2; // Third vertex x (bottom right)
-	vertices[7] = centerY - height / 2;     // Third vertex y
-	vertices[8] = 0.0f;                   // Third vertex z
+	vertices[index++] = centerX;
+	vertices[index++] = centerY + radius;
+	vertices[index++] = 0.0f;
 }
 bool isTraingleDrawn = false;
 
-void moveTraingleDownWard() {
-	if (vertices[1] > 0) {
-		vertices[1] += 0.1;
+float getClockWiseAngle(float x, float y, float h, float k) {
+	float counterClockwiseAngle = atan2((y - k), (x - h));
+	return counterClockwiseAngle;
+}
+
+float getCounterClockwiseAngle(float x, float y, float h, float k) {
+	float angle = atan2((y - k), (x - h));
+
+	if (angle < 0) {
+		angle += 2 * M_PI;
 	}
-	else if (vertices[1] < 0) {
-		vertices[1] -= 0.1;
+	return angle;
+}
+
+void spinTriangle() {
+	//float h = 0, k = 0;
+	float h = startingH;
+	float k = startingK;
+	float firstTheta, secondTheta, thirdTheta;
+	for (int i = 0; i < MAX_TRIANGLES * MAX_COORDNATES; i += 9) {
+		float angleDiff = 0.05;
+		if (k > 0) {
+			firstTheta = getClockWiseAngle(vertices[i + 0], vertices[i + 1], h, k);
+			secondTheta = getClockWiseAngle(vertices[i + 3], vertices[i + 4], h, k);
+			thirdTheta = getClockWiseAngle(vertices[i + 6], vertices[i + 7], h, k);
+
+			vertices[i + 0] = h + (radius * cos(firstTheta - angleDiff));
+			vertices[i + 1] = k + (radius * sin(firstTheta - angleDiff));
+
+			vertices[i + 3] = h + (radius * cos(secondTheta - angleDiff));
+			vertices[i + 4] = k + (radius * sin(secondTheta - angleDiff));
+
+			vertices[i + 6] = h + (radius * cos(thirdTheta - angleDiff));
+			vertices[i + 7] = k + (radius * sin(thirdTheta - angleDiff));
+		}
+		else {
+			firstTheta = getCounterClockwiseAngle(vertices[i + 0], vertices[i + 1], h, k);
+			secondTheta = getCounterClockwiseAngle(vertices[i + 3], vertices[i + 4], h, k);
+			thirdTheta = getCounterClockwiseAngle(vertices[i + 6], vertices[i + 7], h, k);
+
+			vertices[i + 0] = h + (radius * cos(firstTheta + angleDiff));
+			vertices[i + 1] = k + (radius * sin(firstTheta + angleDiff));
+
+			vertices[i + 3] = h + (radius * cos(secondTheta + angleDiff));
+			vertices[i + 4] = k + (radius * sin(secondTheta + angleDiff));
+
+			vertices[i + 6] = h + (radius * cos(thirdTheta + angleDiff));
+			vertices[i + 7] = k + (radius * sin(thirdTheta + angleDiff));
+		}
+		h = h + 2 * radius;
+		if (h > 1) {
+			h = startingH;
+			k = k - 2 * radius;
+		}
 	}
-	if (vertices[4] > 0) {
-		vertices[4] += 0.1;
-	}
-	else if (vertices[4] < 0) {
-		vertices[4] -= 0.1;
-	}
-	if (vertices[7] > 0) {
-		vertices[7] += 0.1;
-	}
-	else if (vertices[7] < 0) {
-		vertices[7] -= 0.1;
-	}
+
 	glBindBuffer(GL_ARRAY_BUFFER, VBO);
 	glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
+
 }
-void processInput(GLFWwindow* window) {
-	double xpos, ypos;
-	int height, width;
-	if (glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_1) == GLFW_PRESS) {
-		double xpos, ypos;
-		int width, height;
+void drawTriangles() {
 
-		glfwGetCursorPos(window, &xpos, &ypos);
-		glfwGetWindowSize(window, &width, &height);
-
-		// Convert screen coordinates to normalized device coordinates
-		float normalizedX = (2.0f * xpos / width) - 1.0f;
-		float normalizedY = 1.0f - (2.0f * ypos / height);
-
-		std::cout << "Mouse clicked at: " << xpos << ", " << ypos << std::endl;
-		std::cout << "Normalized coords: " << normalizedX << ", " << normalizedY << std::endl;
-
-		// Generate an equilateral triangle centered at the clicked position
-		generateEquilateralTriangle(normalizedX, normalizedY, 0.2f);
-
-		// Update the vertex buffer
-		glBindBuffer(GL_ARRAY_BUFFER, VBO);
-		glBufferSubData(GL_ARRAY_BUFFER, 0, sizeof(vertices), vertices);
-		isTraingleDrawn = true;
-
-		std::cout << "Triangle vertices updated" << std::endl;
+	// Generate an equilateral triangle centered at the clicked position
+	int current = 0;
+	for (int i = 0; i < MAX_TRIANGLES; i++) {
+		indices[i * 3] = i * 3;
+		indices[i * 3 + 1] = i * 3 + 1;
+		indices[i * 3 + 2] = i * 3 + 2;
 	}
+	int index = 0;
+	for (int i = 0; i < MAX_TRIANGLES; i++) {
+		generateEquilateralTriangle(currentH, currentK, radius, index);
+		index += 9;
+		currentH = currentH + 2 * radius;
+		if (currentH > 1) {
+			currentH = startingH;
+			currentK = currentK - 2 * radius;
+		}
+	}
+
+	// Update the vertex buffer
+	glBindBuffer(GL_ARRAY_BUFFER, VBO);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+	isTraingleDrawn = true;
 }
 
 const char* vertexShaderSrc = "#version 460 core \n"
@@ -200,22 +223,33 @@ int main() {
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
 	glEnableVertexAttribArray(0);
 	glBindVertexArray(VAO);
-	glfwSwapInterval(4);
+	glfwSwapInterval(1);
+
+	glGenBuffers(1, &EBO);
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+	drawTriangles();
 
 	while (!glfwWindowShouldClose(window)) {
-		processInput(window);
+		auto frameStart = std::chrono::high_resolution_clock::now();
+		//processInput(window);
 
 		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 
 		glUseProgram(shaderProgram);
-		glDrawArrays(GL_TRIANGLES, 0, 3);
+		glDrawElements(GL_TRIANGLES, MAX_TRIANGLES * MAX_VERTICES, GL_UNSIGNED_INT, 0);
 
 		glfwSwapBuffers(window);
 		glfwPollEvents();
 		if (isTraingleDrawn) {
-			moveTraingleDownWard();
-			std::this_thread::sleep_for(std::chrono::milliseconds(200));
+			spinTriangle();
+		}
+		auto frameEnd = std::chrono::high_resolution_clock::now();
+		auto frameDuration = std::chrono::duration_cast<std::chrono::microseconds>(frameEnd - frameStart);
+		const std::chrono::microseconds targetFrameTime(16667);
+
+		if (frameDuration < targetFrameTime) {
+			std::this_thread::sleep_for(targetFrameTime - frameDuration);
 		}
 	}
 	glDeleteVertexArrays(1, &VAO);
