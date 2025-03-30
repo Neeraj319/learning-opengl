@@ -5,6 +5,7 @@
 #include<math.h>
 #include<thread>
 #include<chrono>
+#include"shader_s.h"
 
 #define M_PI 3.14159
 
@@ -132,18 +133,6 @@ void drawTriangles() {
 	isTraingleDrawn = true;
 }
 
-const char* vertexShaderSrc = "#version 460 core \n"
-"layout (location = 0) in vec3 aPos; \n"
-"void main()"
-"{"
-"gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);"
-"}\0";
-
-const char* fragmentShaderSrc = "#version 460 core\n"
-"out vec4 FragColor;"
-"void main(){"
-"FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);"
-"}\0";
 
 int main() {
 	srand(static_cast<unsigned int>(time(0)));
@@ -179,45 +168,7 @@ int main() {
 	glGenVertexArrays(1, &VAO);
 	glBindVertexArray(VAO);
 
-	// vertex shader
-	unsigned int vertexShader;
-	vertexShader = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(vertexShader, 1, &vertexShaderSrc, NULL);
-	glCompileShader(vertexShader);
-
-	int success;
-	char infoLog[512];
-	glGetShaderiv(vertexShader, GL_COMPILE_STATUS, &success);
-	if (!success) {
-		glad_glGetShaderInfoLog(vertexShader, 521, NULL, infoLog);
-		std::cout << "Error::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
-	}
-
-
-	// fragment shader
-	unsigned int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(fragmentShader, 1, &fragmentShaderSrc, NULL);
-	glCompileShader(fragmentShader);
-
-	glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
-	if (!success) {
-		glad_glGetShaderInfoLog(fragmentShader, 521, NULL, infoLog);
-		std::cout << "Error::SHADER::FRAGMENT::COMPILATION_FAILED\n" << infoLog << std::endl;
-	}
-
-	// link shaders
-	unsigned int shaderProgram = glCreateProgram();
-	glAttachShader(shaderProgram, vertexShader);
-	glAttachShader(shaderProgram, fragmentShader);
-	glLinkProgram(shaderProgram);
-
-	glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
-	if (!success) {
-		glad_glGetShaderInfoLog(shaderProgram, 521, NULL, infoLog);
-		std::cout << "Error::Shader Linking Failed\n" << infoLog << std::endl;
-	}
-	glDeleteShader(vertexShader);
-	glDeleteShader(fragmentShader);
+	Shader shader("fragmentShader.glsl", "vertexShader.glsl");
 
 
 	glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
@@ -236,7 +187,7 @@ int main() {
 		glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT);
 
-		glUseProgram(shaderProgram);
+		shader.use();
 		glDrawElements(GL_TRIANGLES, MAX_TRIANGLES * MAX_VERTICES, GL_UNSIGNED_INT, 0);
 
 		glfwSwapBuffers(window);
@@ -254,7 +205,6 @@ int main() {
 	}
 	glDeleteVertexArrays(1, &VAO);
 	glDeleteBuffers(1, &VBO);
-	glDeleteProgram(shaderProgram);
 	glfwTerminate();
 
 	return 0;
